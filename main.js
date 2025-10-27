@@ -69,9 +69,19 @@ const main = async () => {
     const config = getCookie();
 
     let keepAlive = await FETCH_KEEP_ALIVE({ Cookie: extraCookieCheck + config.cookie, "User-Agent": config.userAgent });
-    let match = keepAlive.headers.get('set-cookie').match(/(f5avra[a-zA-Z0-9_]+=[^;]+)/);
 
-    extraCookieCheck = match ? match[1] + "; " : extraCookieCheck;
+    let setCookieHeader = keepAlive.headers.get('set-cookie');
+
+    if (setCookieHeader) {
+        const match = setCookieHeader.match(/(f5avra[a-zA-Z0-9_]+=[^;]+)/);
+        if (match) {
+            const newCookie = match[1] + '; ';
+            // hanya tambahkan jika cookie belum ada
+            if (!extraCookieCheck.includes(match[1])) {
+                extraCookieCheck += newCookie;
+            }
+        }
+    }
 
     keepAlive = await keepAlive.json();
 
