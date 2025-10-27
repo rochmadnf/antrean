@@ -4,8 +4,8 @@ import { FETCH_BY_NOKA, FETCH_KEEP_ALIVE, FETCH_LIST_ANTREAN } from "./lib/endpo
 import LZString from "./lib/LZString.js";
 import { witaDate } from "./lib/constants.js";
 import { readFile } from "./lib/storage.js";
-import { FETCH_NIK_SIAN, GET_ANTREAN_NUMBER, GET_POLI, GET_SIAN_TOKEN, PRINT_ANTREAN, SET_POLI } from "./lib/endpoint/sian.js";
-import { getAntreanByNikAndDate, getConfigByGroupName, insertAntrean, insertConfig } from "./lib/database.js";
+import { FETCH_NIK_SIAN, GET_ANTREAN_NUMBER, GET_SIAN_TOKEN, PRINT_ANTREAN, SET_POLI } from "./lib/endpoint/sian.js";
+import { getAntreanByNikAndDate, insertAntrean } from "./lib/database.js";
 import Table from "cli-table3";
 
 function ask(question) {
@@ -49,7 +49,7 @@ function getSumberAntrean(fromWs) {
 function getCookie() {
     const file = readFile("./storage/bpjs-cookie.json");
 
-    const targetKeys = ["BIGipServerpool", "__RequestVerificationToken", "ASP.NET"];
+    const targetKeys = ["BIGipServerpool", "__RequestVerificationToken", "ASP.NET", "f5avraaaaaaaaaaaaaaaa_session_"];
 
     const filterCookie = file.cookies.filter(cookie =>
         targetKeys.some(key => cookie.name.includes(key))
@@ -67,9 +67,7 @@ let extraCookieCheck = "";
 
 const main = async () => {
     const config = getCookie();
-    const SIAN_TOKEN = await GET_SIAN_TOKEN();
 
-    // console.log("cookie check: ", extraCookieCheck + config.cookie);
     let keepAlive = await FETCH_KEEP_ALIVE({ Cookie: extraCookieCheck + config.cookie, "User-Agent": config.userAgent });
     let match = keepAlive.headers.get('set-cookie').match(/(f5avra[a-zA-Z0-9_]+=[^;]+)/);
 
@@ -77,10 +75,12 @@ const main = async () => {
 
     keepAlive = await keepAlive.json();
 
+    console.log(extraCookieCheck + config.cookie);
+
     if (keepAlive.metaData.code !== 401) {
 
         // get biasa dulu untuk dapat total record
-        let antreanList = await FETCH_LIST_ANTREAN(1, witaDate().format('DD-MM-YYYY'), { Cookie: config.cookie, "User-Agent": config.userAgent });
+        let antreanList = await FETCH_LIST_ANTREAN(1, witaDate().format('DD-MM-YYYY'), { Cookie: extraCookieCheck + config.cookie, "User-Agent": config.userAgent });
 
         if (antreanList.metaData && antreanList.metaData.code === 401) {
             console.log(antreanList.metaData.message);
@@ -94,7 +94,7 @@ const main = async () => {
             antreanList = await FETCH_LIST_ANTREAN(
                 antreanList.response.recordsTotal,
                 witaDate().format('DD-MM-YYYY'),
-                { Cookie: config.cookie, "User-Agent": config.userAgent }
+                { Cookie: extraCookieCheck + config.cookie, "User-Agent": config.userAgent }
             );
             antreanList = JSON.parse(LZString.decompressFromEncodedURIComponent(antreanList));
 
@@ -112,7 +112,7 @@ const main = async () => {
 
 
                 // get detail pasien by nomor kartu di BPJS
-                let detailPeserta = await FETCH_BY_NOKA(antrean.peserta.noKartu, { Cookie: config.cookie, "User-Agent": config.userAgent });
+                let detailPeserta = await FETCH_BY_NOKA(antrean.peserta.noKartu, { Cookie: extraCookieCheck + config.cookie, "User-Agent": config.userAgent });
                 detailPeserta = JSON.parse(LZString.decompressFromEncodedURIComponent(detailPeserta));
 
                 let isAntreanExists = await getAntreanByNikAndDate(detailPeserta.response.nik, witaDate().format('DD-MM-YYYY'));
@@ -173,7 +173,7 @@ const main = async () => {
         }
 
         console.log("Life: ", keepAlive.metaData.message, "\n");
-        setTimeout(main, 40 * 1000);
+        setTimeout(main, 35 * 1000);
     } else {
         console.log("Life: ", keepAlive.metaData.message);
         console.log("Lama Kerja: ", witaDate().diff(startTime), "\n\n");
