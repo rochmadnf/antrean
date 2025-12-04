@@ -73,6 +73,8 @@ const startTime = witaDate();
 
 let extraCookieCheck = "";
 
+const DELAY_IN_SECOND = 45;
+
 const main = async () => {
   const config = getCookie();
 
@@ -107,6 +109,7 @@ const main = async () => {
       }
     );
 
+    // exit aplikasi jika kode respon 401
     if (antreanList.metaData && antreanList.metaData.code === 401) {
       console.log(antreanList.metaData.message);
       console.info("Select dan Copy Perintah ini: pnpm run start");
@@ -117,6 +120,7 @@ const main = async () => {
       LZString.decompressFromEncodedURIComponent(antreanList)
     );
 
+    // get antrean berdasarkan total record
     if (
       antreanList.metaData.code === 200 &&
       Number(antreanList.response.recordsTotal) > 0
@@ -138,6 +142,7 @@ const main = async () => {
         (antrean) => antrean.fromWs === 2
       );
 
+      // looping antrean Mobile JKN
       for (const antrean of antreanMJkn) {
         console.log(`➡️ Data-${counter}`);
         counter++;
@@ -147,22 +152,24 @@ const main = async () => {
         // console.log("Poli: ", antrean.poli.nmPoli);
         // console.log("Sumber: ", getSumberAntrean(antrean.fromWs));
 
-        // get detail pasien by nomor kartu di BPJS
-        let detailPeserta = await FETCH_BY_NOKA(antrean.peserta.noKartu, {
-          Cookie: extraCookieCheck + config.cookie,
-          "User-Agent": config.userAgent,
-        });
-        detailPeserta = JSON.parse(
-          LZString.decompressFromEncodedURIComponent(detailPeserta)
-        );
-
+        // cek dulu, apakah sudah terdaftar atau belum.
         let isAntreanExists = await getAntreanByNikAndDate(
-          detailPeserta.response.nik,
+          "7271",
+          antrean.peserta.noKartu,
           witaDate().format("DD-MM-YYYY")
         );
-        // console.log("getAtrean", isAntreanExists);
 
         if (!isAntreanExists) {
+          // get detail pasien by nomor kartu di BPJS
+          let detailPeserta = await FETCH_BY_NOKA(antrean.peserta.noKartu, {
+            Cookie: extraCookieCheck + config.cookie,
+            "User-Agent": config.userAgent,
+          });
+
+          detailPeserta = JSON.parse(
+            LZString.decompressFromEncodedURIComponent(detailPeserta)
+          );
+
           try {
             const sianPoli = await SET_POLI(
               antrean.peserta.tglLahir,
@@ -206,6 +213,7 @@ const main = async () => {
                 // console.log(nikData);
                 insertAntrean(
                   detailPeserta.response.nik,
+                  detailPeserta.response.noKartu,
                   witaDate().format("DD-MM-YYYY"),
                   respAntrean.data.nomor_antrian
                 );
@@ -247,7 +255,7 @@ const main = async () => {
     }
 
     console.log("Life: ", keepAlive.metaData.message, "\n");
-    setTimeout(main, 35 * 1000);
+    setTimeout(main, DELAY_IN_SECOND * 1000);
   } else {
     console.log("Life: ", keepAlive.metaData.message);
     console.log("Lama Kerja: ", witaDate().diff(startTime), "\n\n");
